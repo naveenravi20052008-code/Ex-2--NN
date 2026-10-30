@@ -49,199 +49,139 @@ STEP 9:For ‘N ‘ iterations ,do the following:<BR>
 STEP 10:Plot the error for each iteration <BR>
 STEP 11:Print the accuracy<BR>
 # PROGRAM:
+# EXPERIMENT 2: PERCEPTRON FOR BINARY CLASSIFICATION
+
+# 1. Import Libraries
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.linear_model import Perceptron
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
-# 1. Load the dataset
-df = pd.read_csv("Iris.csv")
+# 2. Load Dataset
+df = pd.read_csv('/content/classification.csv')
 
-# Show the first five rows and the class counts
-print("First five rows:")
+print("Dataset Loaded Successfully")
+print("\nFirst 5 Rows:")
 print(df.head())
+print("\nDataset Shape:", df.shape)
 
-print("\nSpecies counts:")
-print(df["Species"].value_counts())
+# 3. Explore Dataset
+print("\nMissing Values:")
+print(df.isnull().sum())
 
-# 2. Plot all three species using three measurements
-colors = {
-    "Iris-setosa": "red",
-    "Iris-versicolor": "blue",
-    "Iris-virginica": "green"
-}
+print("\nClass Distribution:")
+print(df['y'].value_counts())
 
-fig = plt.figure(figsize=(7, 5))
-ax = fig.add_subplot(111, projection="3d")
-
-for species, color in colors.items():
-    rows = df[df["Species"] == species]
-    ax.scatter(
-        rows["SepalLengthCm"],
-        rows["SepalWidthCm"],
-        rows["PetalLengthCm"],
-        color=color,
-        label=species
-    )
-
-ax.set_title("Iris dataset: three species")
-ax.set_xlabel("Sepal length (cm)")
-ax.set_ylabel("Sepal width (cm)")
-ax.set_zlabel("Petal length (cm)")
-ax.legend()
+# 4. Visualize Class Distribution
+plt.figure(figsize=(6, 4))
+sns.countplot(data=df, x='y')
+plt.title("Binary Class Distribution")
+plt.xlabel("Target Class")
+plt.ylabel("Number of Samples")
 plt.show()
 
-# 3. Keep two species for binary classification
-chosen_species = ["Iris-setosa", "Iris-versicolor"]
-data = df[df["Species"].isin(chosen_species)].copy()
+# 5. Select Input and Target
+X = df[['X2']]
+y = df['y']
 
-# 4. Select petal length and petal width
-feature_names = ["PetalLengthCm", "PetalWidthCm"]
-X = data[feature_names].to_numpy(dtype=float)
-
-# Encode the species as -1 and +1
-label_map = {
-    "Iris-setosa": -1,
-    "Iris-versicolor": 1
-}
-y = data["Species"].map(label_map).to_numpy()
-
-# Plot the two selected species using the original measurements
-plt.figure(figsize=(7, 5))
-
-for species, color in [
-    ("Iris-setosa", "red"),
-    ("Iris-versicolor", "blue")
-]:
-    rows = data[data["Species"] == species]
-    plt.scatter(
-        rows["PetalLengthCm"],
-        rows["PetalWidthCm"],
-        color=color,
-        label=species
-    )
-
-plt.title("Petal measurements: setosa vs versicolor")
-plt.xlabel("Petal length (cm)")
-plt.ylabel("Petal width (cm)")
-plt.legend()
-plt.grid(True)
-plt.show()
-
-# 5. Split into training and test data
+# 6. Split Dataset
 X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.20,
-    random_state=42,
-    stratify=y
+    X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# 6. Standardize the features using training data only
+print("\nTraining Samples:", len(X_train))
+print("Testing Samples:", len(X_test))
+
+# 7. Feature Scaling
 scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 
-# 7. Train the perceptron
-learning_rate = 0.1
-epochs = 50
-
-weights = [0.0, 0.0]
-bias = 0.0
-errors_per_epoch = []
-
-for epoch in range(epochs):
-    errors = 0
-
-    for xi, target in zip(X_train, y_train):
-        score = weights[0] * xi[0] + weights[1] * xi[1] + bias
-
-        # Update weights and bias when the example is misclassified
-        if target * score <= 0:
-            weights[0] += learning_rate * target * xi[0]
-            weights[1] += learning_rate * target * xi[1]
-            bias += learning_rate * target
-            errors += 1
-
-    errors_per_epoch.append(errors)
-
-    # Stop when there are no training mistakes
-    if errors == 0:
-        break
-
-# 8. Test the perceptron on the held-out data
-test_scores = X_test @ weights + bias
-y_pred = [1 if score >= 0 else -1 for score in test_scores]
-
-accuracy = accuracy_score(y_test, y_pred)
-
-print("\nSelected records:", len(data))
-print("Training records:", len(X_train))
-print("Test records:", len(X_test))
-print("Training epochs completed:", len(errors_per_epoch))
-print("Test accuracy: {:.2f}%".format(accuracy * 100))
-print("Confusion matrix (labels -1, +1):")
-print(confusion_matrix(y_test, y_pred, labels=[-1, 1]))
-
-# 9. Plot the two classes and the decision boundary
-plt.figure(figsize=(7, 5))
-
-for label, name, color in [
-    (-1, "Iris-setosa", "blue"),
-    (1, "Iris-versicolor", "orange")
-]:
-    mask = y_train == label
-    plt.scatter(
-        X_train[mask, 0],
-        X_train[mask, 1],
-        label=name,
-        color=color
-    )
-
-# Draw the decision boundary: w1*x1 + w2*x2 + bias = 0
-x_values = [
-    X_train[:, 0].min() - 0.5,
-    X_train[:, 0].max() + 0.5
-]
-
-if abs(weights[1]) > 1e-10:
-    y_values = [
-        -(weights[0] * x + bias) / weights[1]
-        for x in x_values
-    ]
-    plt.plot(x_values, y_values, "k--", label="Decision boundary")
-
-plt.xlabel("Standardized petal length")
-plt.ylabel("Standardized petal width")
-plt.title("Perceptron: Iris-setosa vs Iris-versicolor")
-plt.legend()
-plt.grid(True)
-plt.show()
-
-# 10. Plot training mistakes for each epoch
-plt.figure(figsize=(7, 4))
-plt.plot(
-    range(1, len(errors_per_epoch) + 1),
-    errors_per_epoch,
-    marker="o"
+# 8. Train Perceptron Model
+model = Perceptron(
+    max_iter=1000,
+    eta0=1.0,
+    tol=0.001,
+    random_state=42
 )
+
+model.fit(X_train_scaled, y_train)
+
+print("\nPerceptron Model Trained Successfully")
+print("Number of Iterations:", model.n_iter_)
+
+# 9. Make Predictions
+y_train_pred = model.predict(X_train_scaled)
+y_pred = model.predict(X_test_scaled)
+
+print("\nActual Values:")
+print(y_test.values[:15])
+
+print("\nPredicted Values:")
+print(y_pred[:15])
+
+# 10. Calculate Accuracy
+train_accuracy = accuracy_score(y_train, y_train_pred)
+test_accuracy = accuracy_score(y_test, y_pred)
+
+print("\nTraining Accuracy:", round(train_accuracy * 100, 2), "%")
+print("Testing Accuracy:", round(test_accuracy * 100, 2), "%")
+
+# 11. Classification Report
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+# 12. Confusion Matrix
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(6, 5))
+sns.heatmap(
+    cm, annot=True, fmt='d', cmap='Blues',
+    xticklabels=['Class 0', 'Class 1'],
+    yticklabels=['Class 0', 'Class 1']
+)
+plt.title("Perceptron Confusion Matrix")
+plt.xlabel("Predicted Values")
+plt.ylabel("Actual Values")
+plt.show()
+
+# 13. Error Analysis Across Epochs
+errors = []
+
+for epoch in range(1, 51):
+    temp_model = Perceptron(
+        max_iter=epoch,
+        eta0=1.0,
+        tol=None,
+        shuffle=False,
+        random_state=42
+    )
+    temp_model.fit(X_train_scaled, y_train)
+    prediction = temp_model.predict(X_train_scaled)
+    errors.append(np.sum(prediction != y_train))
+
+plt.figure(figsize=(8, 5))
+plt.plot(range(1, 51), errors, marker='o')
+plt.title("Perceptron Errors Across Epochs")
 plt.xlabel("Epoch")
-plt.ylabel("Number of training mistakes")
-plt.title("Perceptron training error by epoch")
+plt.ylabel("Number of Errors")
 plt.grid(True)
 plt.show()
+
 
 # OUTPUT:
+<img width="1035" height="786" alt="Screenshot 2026-10-30 142331" src="https://github.com/user-attachments/assets/746d748d-d2f4-412d-b881-6987e3d64ae3" />
 
-<img width="810" height="296" alt="Screenshot 2026-10-29 202124" src="https://github.com/user-attachments/assets/d414065b-3483-4ee4-9245-caa689da43f4" />
+<img width="627" height="512" alt="Screenshot 2026-10-30 142436" src="https://github.com/user-attachments/assets/321fa61e-db7a-4455-960c-f0ba940f8c5b" />
 
-<img width="773" height="1007" alt="Screenshot 2026-10-29 202243" src="https://github.com/user-attachments/assets/2e2797dc-c133-4cce-9346-8b2ac44e4677" />
+<img width="875" height="1078" alt="Screenshot 2026-10-30 142458" src="https://github.com/user-attachments/assets/810546d9-c71e-4e1a-85fe-2aa6c679a83c" />
 
-<img width="855" height="721" alt="Screenshot 2026-10-29 202253" src="https://github.com/user-attachments/assets/5c43c749-31a4-47e3-be2b-6c9434d506bb" />
-
- <img width="792" height="447" alt="Screenshot 2026-10-29 202313" src="https://github.com/user-attachments/assets/51e8c1a6-b79c-411a-aca0-c9aac97ee42e" />
+<img width="442" height="202" alt="Screenshot 2026-10-30 142512" src="https://github.com/user-attachments/assets/13799717-7c68-4094-9a27-37c45313e1df" />
 
 
 # RESULT:
